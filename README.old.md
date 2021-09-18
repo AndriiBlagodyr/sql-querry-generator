@@ -1,0 +1,1 @@
+# sql-querry-generator
