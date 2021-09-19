@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { FaSearch } from 'react-icons/fa';
 
-import { SearchSection } from '../components/SearchSection';
+import { RuleSection } from '../components/RuleSection';
 import { PrimaryButton, SecondaryButton, AndButton } from '../components/styles';
 
 const StyledTitle = styled.h2`
@@ -17,7 +17,7 @@ const Wrapper = styled.div`
 `;
 
 const StyledPanel = styled.div`
-  max-width: 950px;
+  max-width: 1100px;
   min-height: 100vh;
   padding: 16px;
   display: flex;
@@ -32,25 +32,159 @@ const StyledLine = styled.hr`
   margin: 50px 0 10px;
 `;
 
+export const StyledSQLStatement = styled.textarea`
+  width: 100%;
+  height: 80px;
+  padding: 4px 12px;
+  margin-top: 20px;
+
+  background: ${props => (props.disabled ? props.theme.colors.bgGreyPrimary : 'none')};
+  border: ${props => `1px solid ${props.theme.colors.bgBorderSecondary}`};
+
+  font-weight: 500;
+  font-size: 14px;
+  text-align: left;
+
+  border-radius: 4px;
+
+  &::placeholder {
+    color: ${props => props.theme.colors.bgGreyPrimary};
+    text-align: center;
+  }
+`;
+
+const ErrorMessage = styled.span`
+  color: tomato;
+  font-weight: 500;
+  font-size: 14px;
+  text-align: left;
+  margin: 0 8px 12px;
+`;
+
+const SQLOperatorsMap = {
+  equals: ' = ',
+  between: ' BETWEEN ',
+  greater_than: ' > ',
+  less_than: ' < ',
+  in_list: ' IN ',
+  contains: ' LIKE ',
+  starts_with: ' LIKE ',
+};
+
+const initialRulesSectionsState = {
+  id: 0,
+  predicate: 'user_email',
+  operator: 'equals',
+  betweenFirstVal: '',
+  betweenSecondVal: '',
+  conditionVal: '',
+};
+
+const transformValue = (key, { conditionVal, betweenFirstVal, betweenSecondVal }) => {
+  switch (key) {
+    case 'starts_with':
+      return `'${conditionVal}%'`;
+    case 'contains':
+      return `'%${conditionVal}%'`;
+    case 'in_list':
+      return `(${conditionVal})`;
+    case 'between':
+      return ` ${betweenFirstVal} AND ${betweenSecondVal}`;
+    default:
+      return `${conditionVal}`;
+  }
+};
+
+const areOptionsValid = ruleSections => {
+  return ruleSections.some(
+    section =>
+      (section.operator !== 'between' && section.conditionVal === '') ||
+      (section.operator === 'between' &&
+        (section.betweenFirstVal === '' || section.betweenSecondVal === ''))
+  );
+};
+
 export const SQLGenerator = () => {
-  const onSubmit = event => {
-    event.preventDefault();
+  const [idCounter, setIdCounter] = useState(0);
+  const [isValid, setIsValid] = useState(true);
+  const [tableName] = useState('session');
+  const [ruleSections, setRuleSections] = useState([initialRulesSectionsState]);
+  const [SQLQuery, setSQLQuery] = useState('');
+
+  const addRulesHandler = () => {
+    const newId = idCounter + 1;
+    setIdCounter(newId);
+    setRuleSections([...ruleSections, { ...initialRulesSectionsState, id: newId }]);
+  };
+
+  const onCloseHandler = id => {
+    if (ruleSections.length > 1) {
+      setRuleSections(ruleSections.filter(section => section.id !== id));
+      setSQLQuery('');
+    }
+  };
+
+  const onChangeQuery = querryDetails => {
+    setRuleSections(
+      ruleSections.map(section => {
+        if (section.id === querryDetails.id) {
+          return { ...querryDetails };
+        }
+        return section;
+      })
+    );
+  };
+
+  const resetHandler = () => {
+    setRuleSections([ruleSections[0]]);
+    setSQLQuery('');
+  };
+
+  const generateSQLQuery = () => {
+    setIsValid(true);
+    if (areOptionsValid(ruleSections)) {
+      setIsValid(false);
+      return;
+    }
+    let query = '';
+    ruleSections.forEach((item, index, array) => {
+      const queryPart = `${item.predicate}${SQLOperatorsMap[item.operator]}${transformValue(
+        item.operator,
+        {
+          ...item,
+        }
+      )}`;
+      query = query.concat(queryPart);
+      if (index !== array.length - 1) {
+        query = query.concat(' AND ');
+      }
+    });
+    setSQLQuery(`SELECT * FROM ${tableName} WHERE ${query}`);
   };
 
   return (
     <Wrapper>
       <StyledPanel>
         <StyledTitle>Search for Sessions</StyledTitle>
-        <SearchSection />
-        <AndButton>And</AndButton>
+        {ruleSections.map(section => (
+          <RuleSection
+            onChangeQuery={onChangeQuery}
+            onCloseHandler={onCloseHandler}
+            key={section.id}
+            id={section.id}
+          />
+        ))}
+        {!isValid && <ErrorMessage>Please, fill in empty fields!</ErrorMessage>}
+        <AndButton onClick={addRulesHandler}>And</AndButton>
         <StyledLine />
         <div>
-          <PrimaryButton>
+          <PrimaryButton onClick={generateSQLQuery}>
             {' '}
             <FaSearch style={{ marginRight: '10px', position: 'relative', top: '3px' }} /> Search
           </PrimaryButton>
-          <SecondaryButton>Reset</SecondaryButton>
+          <SecondaryButton onClick={resetHandler}>Reset</SecondaryButton>
         </div>
+        <StyledSQLStatement value={SQLQuery} readOnly placeholder="Generated SQL Statement" />
       </StyledPanel>
     </Wrapper>
   );

@@ -6,7 +6,8 @@ export const Input = styled.input`
 
   background: ${props => (props.disabled ? props.theme.colors.bgGreyPrimary : 'none')};
   display: ${props => (props.disabled ? 'inline' : 'block')};
-  max-width: ${props => (props.disabled ? '40px' : 'auto')};
+  max-width: ${props => (props.disabled ? '50px' : 'auto')};
+  min-width: 50px;
   border: ${props => `1px solid ${props.theme.colors.bgBorderSecondary}`};
 
   font-weight: 500;
@@ -17,6 +18,10 @@ export const Input = styled.input`
 
   &:focus {
     outline: none;
+  }
+  &::placeholder {
+    color: ${props => props.theme.colors.bgGreyPrimary};
+    opacity: 0.9;
   }
 `;
 
