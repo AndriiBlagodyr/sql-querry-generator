@@ -142,6 +142,7 @@ export const SQLGenerator = () => {
 
   const generateSQLQuery = () => {
     setIsValid(true);
+    setSQLQuery('');
     if (areOptionsValid(ruleSections)) {
       setIsValid(false);
       return;
